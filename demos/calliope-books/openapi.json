@@ -1,0 +1,135 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Calliope Books", "version": "1.0.0" },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "Book": {
+        "type": "object",
+        "required": ["id", "title", "author"],
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "author": { "type": "string" },
+          "genre": { "type": "string" },
+          "price": { "type": "number" },
+          "stock": { "type": "integer" }
+        }
+      },
+      "BookList": {
+        "type": "object",
+        "properties": {
+          "books": { "type": "array", "items": { "$ref": "#/components/schemas/Book" } },
+          "total": { "type": "integer" }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "required": ["id", "book_id", "rating"],
+        "properties": {
+          "id": { "type": "integer" },
+          "book_id": { "type": "integer" },
+          "rating": { "type": "integer" },
+          "comment": { "type": "string" },
+          "created_at": { "type": "string" }
+        }
+      },
+      "ReviewList": {
+        "type": "object",
+        "properties": {
+          "reviews": { "type": "array", "items": { "$ref": "#/components/schemas/Review" } }
+        }
+      },
+      "CreateReview": {
+        "type": "object",
+        "required": ["rating"],
+        "properties": {
+          "rating": { "type": "integer" },
+          "comment": { "type": "string" }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "books": { "type": "array", "items": { "$ref": "#/components/schemas/Book" } }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "service": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Health check",
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } } }
+      }
+    },
+    "/api/books": {
+      "get": {
+        "operationId": "listBooks",
+        "summary": "List all books",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookList" } } } } }
+      }
+    },
+    "/api/books/search": {
+      "get": {
+        "operationId": "searchBooks",
+        "summary": "Search books by title or author",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SearchResult" } } } },
+          "404": { "description": "Route ordering bug — shadowed by /:id" }
+        }
+      }
+    },
+    "/api/books/{id}": {
+      "get": {
+        "operationId": "getBook",
+        "summary": "Get book by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Book" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/books/{id}/reviews": {
+      "get": {
+        "operationId": "getReviews",
+        "summary": "Get reviews for a book",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewList" } } } } }
+      },
+      "post": {
+        "operationId": "createReview",
+        "summary": "Add a review",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateReview" } } } },
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Review" } } } },
+          "400": { "description": "Invalid rating" }
+        }
+      }
+    }
+  }
+}

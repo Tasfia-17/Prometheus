@@ -1,0 +1,10 @@
+{
+  "name": "hestia-eats",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" },
+  "dependencies": {
+    "hono": "4.7.10",
+    "@hono/node-server": "1.14.3"
+  }
+}

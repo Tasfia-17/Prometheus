@@ -1,0 +1,29 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+.env
+
+# k6 results (keep structure, ignore output files)
+k6/prometheus/results/*.json
+k6/prometheus/results/*.html
+k6/prometheus/results/*-report.md
+k6/prometheus/results/*-risk.md
+k6/prometheus/results/*-graphrag.md
+
+# Baselines (committed intentionally)
+!.prometheus/baselines/
+
+# Node
+node_modules/
+demos/*/node_modules/
+
+# Logs
+/tmp/*.log
+*.log
+
+# SQLite
+*.db
+*.sqlite

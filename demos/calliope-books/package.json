@@ -1,0 +1,9 @@
+{
+  "name": "calliope-books",
+  "version": "1.0.0",
+  "main": "app.js",
+  "dependencies": {
+    "express": "4.21.2",
+    "sql.js": "1.12.0"
+  }
+}

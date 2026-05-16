@@ -1,0 +1,166 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Hestia Eats", "version": "1.0.0" },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "schemas": {
+      "Restaurant": {
+        "type": "object",
+        "required": ["id", "name", "cuisine"],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "cuisine": { "type": "string" },
+          "rating": { "type": "number" },
+          "delivery_time": { "type": "integer" }
+        }
+      },
+      "RestaurantList": {
+        "type": "object",
+        "properties": {
+          "restaurants": { "type": "array", "items": { "$ref": "#/components/schemas/Restaurant" } }
+        }
+      },
+      "MenuItem": {
+        "type": "object",
+        "required": ["id", "name", "price"],
+        "properties": {
+          "id": { "type": "integer" },
+          "restaurant_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "price": { "type": "number" },
+          "category": { "type": "string" }
+        }
+      },
+      "MenuList": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/MenuItem" } }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "required": ["menu_item_id", "quantity", "price"],
+        "properties": {
+          "menu_item_id": { "type": "integer" },
+          "quantity": { "type": "integer" },
+          "price": { "type": "number" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["id", "restaurant_id", "items", "total", "status"],
+        "properties": {
+          "id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "restaurant_id": { "type": "integer" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OrderItem" } },
+          "total": { "type": "number" },
+          "status": { "type": "string" },
+          "created_at": { "type": "string" }
+        }
+      },
+      "CreateOrder": {
+        "type": "object",
+        "required": ["restaurant_id", "items"],
+        "properties": {
+          "restaurant_id": { "type": "integer" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OrderItem" } }
+        }
+      },
+      "OrderHistory": {
+        "type": "object",
+        "properties": {
+          "orders": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } },
+          "total": { "type": "integer" }
+        }
+      },
+      "OrderStats": {
+        "type": "object",
+        "properties": {
+          "total_orders": { "type": "integer" },
+          "total_revenue": { "type": "number" },
+          "by_status": { "type": "object" }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": { "status": { "type": "string" }, "service": { "type": "string" } }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "health",
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } } }
+      }
+    },
+    "/api/restaurants": {
+      "get": {
+        "operationId": "listRestaurants",
+        "summary": "List restaurants",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "cuisine", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RestaurantList" } } } } }
+      }
+    },
+    "/api/restaurants/{id}": {
+      "get": {
+        "operationId": "getRestaurant",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Restaurant" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/restaurants/{id}/menu": {
+      "get": {
+        "operationId": "getMenu",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MenuList" } } } } }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "operationId": "createOrder",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateOrder" } } } },
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "400": { "description": "Bad request" }
+        }
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "operationId": "getOrder",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/orders/history": {
+      "get": {
+        "operationId": "getOrderHistory",
+        "summary": "Get order history — BUG: unbounded fetchAll",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "user_id", "in": "query", "schema": { "type": "integer" } }],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderHistory" } } } } }
+      }
+    },
+    "/api/orders/history/stats": {
+      "get": {
+        "operationId": "getOrderStats",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderStats" } } } } }
+      }
+    }
+  }
+}
