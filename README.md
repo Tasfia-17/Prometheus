@@ -40,11 +40,11 @@ When a branch changes an endpoint, [BFS traversal](https://en.wikipedia.org/wiki
 
 | Spec | Nodes | Edges | Token reduction |
 |---|---|---|---|
-| Midas Bank | 32 | 30 | **~95%** |
-| Calliope Books | 39 | 40 | **~96%** |
-| Hestia Eats | 55 | 57 | **~95%** |
+| Midas Bank | 52 | 58 | **~95%** |
+| Calliope Books | 44 | 48 | **~96%** |
+| Hestia Eats | 68 | 74 | **~95%** |
 
-Zero hallucinated endpoints across all test scenarios. 43 unit tests, 0.13s runtime.
+Zero hallucinated endpoints across all test scenarios. 53 unit tests, 0.10s runtime.
 
 ```
 $ echo '+@app.post("/api/transactions/transfer")' | python3 -m graphrag \
@@ -88,9 +88,9 @@ Three sample applications built for this hackathon, each with intentional perfor
 
 | App | Stack | Port | Endpoints | Injected Fault |
 |---|---|---|---|---|
-| Midas Bank | Python / FastAPI / SQLite | 8000 | 7 | Shared `sqlite3.Connection` — not thread-safe under FastAPI's thread pool |
-| Calliope Books | JavaScript / Express / sql.js | 3000 | 5 | `GET /api/books/:id` declared before `/api/books/search` — shadows the search route |
-| Hestia Eats | JavaScript / Hono / in-memory | 8080 | 7 | `orders.slice()` copies all 500+ orders into memory on every request |
+| Midas Bank | Python / FastAPI / SQLite | 8000 | 9 | Shared `sqlite3.Connection` — not thread-safe under FastAPI's thread pool; N+1 in accounts summary |
+| Calliope Books | JavaScript / Express / sql.js | 3000 | 8 | `GET /api/books/:id` declared before `/api/books/search` — shadows the search route; N+1 in suggestions |
+| Hestia Eats | JavaScript / Hono / in-memory | 8080 | 9 | `orders.slice()` copies all 500+ orders into memory on every request; N+1 in restaurant search |
 
 Each app includes a `BOB-CONFIG.md` with project-specific SLOs and auth config, and an `openapi.json` spec. Same agent, three stacks, zero code changes — only the per-project config differs.
 
@@ -153,6 +153,10 @@ tests/                        # 43 unit + integration tests for GraphRAG
 
 One file: `BOB-CONFIG.md`. No CI YAML. No SDK. No pipeline changes.
 
+For **GitHub integration**, Prometheus includes a GitHub Actions workflow that automatically triggers on PRs and posts results as comments. See [`.github/workflows/prometheus.yml`](.github/workflows/prometheus.yml).
+
+**Manual config** (one `BOB-CONFIG.md` per project):
+
 ```markdown
 # MyApp — BOB-CONFIG.md
 
@@ -176,11 +180,15 @@ Add an `openapi.json` spec and Prometheus handles the rest.
 ```bash
 # Unit tests
 python3 -m pytest tests/ -v
-# 43 passed in 0.13s
+# 53 passed in 0.10s
 
 # GraphRAG CLI
 echo '+@app.post("/api/transactions/transfer")' | python3 -m graphrag \
   --spec demos/midas-bank/openapi.json --diff-stdin
+
+# GraphRAG A/B proof (requires OpenAI API key)
+export OPENAI_API_KEY=<your-key>
+python3 scripts/graphrag-proof.py
 
 # Demo apps
 cd demos/midas-bank && pip install -r requirements.txt && uvicorn app:app --port 8000

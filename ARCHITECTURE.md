@@ -222,17 +222,17 @@ Same agent, three stacks, zero agent code changes. Only the per-project config d
 
 ## Test Coverage
 
-43 unit + integration tests across three modules:
+53 unit + integration tests across three modules:
 
 | Module | Tests | Coverage |
 |---|---|---|
-| `test_builder.py` | 15 | Graph construction, node/edge types, property extraction |
+| `test_builder.py` | 21 | Graph construction, node/edge types, property extraction, new endpoints |
 | `test_retriever.py` | 17 | BFS traversal, diff parsing, fuzzy matching, path matching |
-| `test_integration.py` | 11 | End-to-end: spec → graph → retrieval → text output |
+| `test_integration.py` | 15 | End-to-end: spec → graph → retrieval → text output, new endpoint validation |
 
 ```bash
 $ python3 -m pytest tests/ -v
-# 43 passed in 0.05s
+# 53 passed in 0.10s
 ```
 
 ---

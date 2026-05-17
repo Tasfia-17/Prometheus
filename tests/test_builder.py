@@ -183,4 +183,121 @@ def test_hestia_spec():
         return
     spec = json.loads(spec_path.read_text())
     g = OpenAPIGraph.from_spec(spec)
-    assert len(g.endpoints()) >= 7
+    assert len(g.endpoints()) >= 9
+
+
+def test_midas_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/midas-bank/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "POST /api/transactions/withdraw" in eps
+    assert "GET /api/accounts/summary" in eps
+
+
+def test_calliope_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/calliope-books/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "GET /api/books/suggestions" in eps
+    assert "GET /api/books/genre/{genre}" in eps
+
+
+def test_hestia_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/hestia-eats/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "GET /api/restaurants/search" in eps
+    assert "DELETE /api/orders/{id}" in eps
+
+
+def test_allof_schema():
+    spec = {
+        "openapi": "3.0.0", "info": {}, "paths": {},
+        "components": {"schemas": {
+            "Base": {"type": "object", "properties": {"id": {"type": "integer"}}},
+            "Extended": {"allOf": [
+                {"$ref": "#/components/schemas/Base"},
+                {"properties": {"name": {"type": "string"}}}
+            ]}
+        }}
+    }
+    g = OpenAPIGraph.from_spec(spec)
+    assert g.graph.has_edge("Extended", "Base")
+
+
+def test_anyof_property_type():
+    spec = {
+        "openapi": "3.0.0", "info": {}, "paths": {},
+        "components": {"schemas": {
+            "Item": {"type": "object", "properties": {
+                "value": {"anyOf": [{"type": "string"}, {"type": "integer"}]}
+            }}
+        }}
+    }
+    g = OpenAPIGraph.from_spec(spec)
+    prop = g.graph.nodes.get("Item.value", {})
+    assert "string" in prop.get("property_type", "") or "integer" in prop.get("property_type", "")
+
+
+def test_multiple_response_schemas():
+    spec = {
+        "openapi": "3.0.0", "info": {}, "paths": {
+            "/api/items": {"get": {
+                "responses": {
+                    "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ItemList"}}}},
+                    "404": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+                }
+            }}
+        },
+        "components": {"schemas": {
+            "ItemList": {"type": "object", "properties": {"items": {"type": "array"}}},
+            "Error": {"type": "object", "properties": {"detail": {"type": "string"}}}
+        }}
+    }
+    g = OpenAPIGraph.from_spec(spec)
+    edges = {(u, v, d["relation"]) for u, v, d in g.graph.edges(data=True)}
+    assert ("GET /api/items", "ItemList", "RETURNS") in edges
+    assert ("GET /api/items", "Error", "RETURNS") in edges
+
+
+
+def test_midas_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/midas-bank/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "POST /api/transactions/withdraw" in eps
+    assert "GET /api/accounts/summary" in eps
+
+
+def test_calliope_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/calliope-books/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "GET /api/books/suggestions" in eps
+    assert "GET /api/books/genre/{genre}" in eps
+
+
+def test_hestia_new_endpoints():
+    spec_path = Path(__file__).parent.parent / "demos/hestia-eats/openapi.json"
+    if not spec_path.exists():
+        return
+    spec = json.loads(spec_path.read_text())
+    g = OpenAPIGraph.from_spec(spec)
+    eps = g.endpoints()
+    assert "GET /api/restaurants/search" in eps
+    assert "DELETE /api/orders/{id}" in eps

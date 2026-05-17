@@ -4,6 +4,30 @@
   "components": {
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
     "schemas": {
+      "RestaurantWithCount": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "cuisine": { "type": "string" },
+          "rating": { "type": "number" },
+          "delivery_time": { "type": "integer" },
+          "order_count": { "type": "integer" }
+        }
+      },
+      "RestaurantSearchResult": {
+        "type": "object",
+        "properties": {
+          "restaurants": { "type": "array", "items": { "$ref": "#/components/schemas/RestaurantWithCount" } }
+        }
+      },
+      "CancelledOrder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "status": { "type": "string" }
+        }
+      },
       "Restaurant": {
         "type": "object",
         "required": ["id", "name", "cuisine"],
@@ -135,6 +159,20 @@
         }
       }
     },
+    "/api/restaurants/search": {
+      "get": {
+        "operationId": "searchRestaurants",
+        "summary": "Search restaurants — BUG: N+1 order count per restaurant",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "min_rating", "in": "query", "schema": { "type": "number" } }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RestaurantSearchResult" } } } }
+        }
+      }
+    },
     "/api/orders/{id}": {
       "get": {
         "operationId": "getOrder",
@@ -142,6 +180,17 @@
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "responses": {
           "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "operationId": "cancelOrder",
+        "summary": "Cancel a pending order",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CancelledOrder" } } } },
+          "400": { "description": "Order not cancellable" },
           "404": { "description": "Not found" }
         }
       }

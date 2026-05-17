@@ -71,7 +71,12 @@ done
 
 # ── Step 3: Risk analysis ──
 mkdir -p k6/prometheus/results
-DIFF_TEXT=$(git diff HEAD~1 -- "demos/${APP_TYPE}-bank/" "demos/${APP_TYPE}-books/" "demos/${APP_TYPE}-eats/" 2>/dev/null || \
+case "$APP_TYPE" in
+  midas)    DEMO_DIR="demos/midas-bank" ;;
+  calliope) DEMO_DIR="demos/calliope-books" ;;
+  hestia)   DEMO_DIR="demos/hestia-eats" ;;
+esac
+DIFF_TEXT=$(git diff HEAD~1 -- "${DEMO_DIR}/" 2>/dev/null || \
             git diff HEAD~1 -- "demos/" 2>/dev/null || echo "")
 RISK_FILE="k6/prometheus/results/${REPORT_NAME}-risk.md"
 GRAPHRAG_FILE="k6/prometheus/results/${REPORT_NAME}-graphrag.md"
@@ -93,7 +98,7 @@ k6 inspect "$SCRIPT_PATH" > /dev/null 2>&1 || { echo "ERROR: k6 script invalid";
 
 # ── Step 5: Run k6 ──
 echo "Running k6: $SCRIPT_PATH"
-k6 run --env BASE_URL="$BASE_URL" "$SCRIPT_PATH" > /tmp/k6-run.log 2>&1
+k6 run --env BASE_URL="$BASE_URL" --env REPORT_NAME="$REPORT_NAME" "$SCRIPT_PATH" > /tmp/k6-run.log 2>&1
 K6_EXIT=$?
 tail -20 /tmp/k6-run.log
 

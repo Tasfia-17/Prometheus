@@ -132,6 +132,33 @@ app.get("/api/orders/history/stats", requireAuth, (c) => {
   return c.json(stats);
 });
 
+app.delete("/api/orders/:id", requireAuth, (c) => {
+  const id = parseInt(c.req.param("id"));
+  const idx = orders.findIndex((o) => o.id === id);
+  if (idx === -1) return c.json({ detail: "Order not found" }, 404);
+  if (orders[idx].status !== "pending") {
+    return c.json({ detail: "Only pending orders can be cancelled" }, 400);
+  }
+  orders[idx] = { ...orders[idx], status: "cancelled" };
+  return c.json({ id, status: "cancelled" });
+});
+
+// BUG: N+1 — enriches each restaurant with a separate lookup per order
+app.get("/api/restaurants/search", requireAuth, (c) => {
+  const { q = "", min_rating } = c.req.query();
+  let result = restaurants.filter((r) =>
+    r.name.toLowerCase().includes(q.toLowerCase()) ||
+    r.cuisine.toLowerCase().includes(q.toLowerCase())
+  );
+  if (min_rating) result = result.filter((r) => r.rating >= parseFloat(min_rating));
+  // N+1: for each restaurant, count its orders separately
+  const enriched = result.map((r) => {
+    const orderCount = orders.filter((o) => o.restaurant_id === r.id).length;
+    return { ...r, order_count: orderCount };
+  });
+  return c.json({ restaurants: enriched });
+});
+
 serve({ fetch: app.fetch, port: 8080 }, () =>
   console.log("Hestia Eats running on :8080")
 );

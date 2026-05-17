@@ -91,8 +91,9 @@ export function bookFlow() {
 }
 
 export function handleSummary(data) {
+  const slug = __ENV.REPORT_NAME || "calliope-books-test";
   return {
-    "k6/prometheus/results/calliope-books-test.json": JSON.stringify(data, null, 2),
+    [`k6/prometheus/results/${slug}.json`]: JSON.stringify(data, null, 2),
     stdout: JSON.stringify({ status: "complete", metrics: Object.keys(data.metrics).length }),
   };
 }

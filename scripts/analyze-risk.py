@@ -44,7 +44,7 @@ PATTERNS = [
      "sync_http", "high",
      "Synchronous external HTTP call — latency amplified under load",
      "Use async HTTP client with timeouts"),
-    (re.compile(r'for\s+\w+\s+in\s+.*:\s*\n\s+for\s+\w+\s+in', re.MULTILINE),
+    (re.compile(r'for\s+\w+\s+in\s+[^:]+:\s*\n(?:[ \t]+[^\n]*\n)*?[ \t]+for\s+\w+\s+in', re.MULTILINE),
      "nested_loop", "medium",
      "Nested loop — O(n²) complexity degrades under load",
      "Use dicts/sets for O(1) lookups"),
@@ -61,7 +61,7 @@ def analyze(diff: str) -> list[Risk]:
     )
     risks, seen = [], set()
 
-    # N+1 detection
+    # N+1 detection: DB call anywhere within 10 lines after a loop header
     for m in LOOP.finditer(added):
         context = added[m.end():m.end() + 400]
         if DB_CALL.search(context) and "n_plus_one" not in seen:

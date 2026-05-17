@@ -176,3 +176,46 @@ def get_balance(account_id: int, auth=Depends(require_auth)):
     if not row:
         raise HTTPException(status_code=404, detail="Account not found")
     return {"account_id": account_id, "balance": row[0]}
+
+
+class WithdrawRequest(BaseModel):
+    account_id: int
+    amount: float
+    description: str = ""
+
+
+@app.post("/api/transactions/withdraw", status_code=201)
+def withdraw(req: WithdrawRequest, auth=Depends(require_auth)):
+    db = get_db()
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    row = db.execute("SELECT balance FROM accounts WHERE id=?", (req.account_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if row[0] < req.amount:
+        raise HTTPException(status_code=400, detail="Insufficient funds")
+    db.execute("UPDATE accounts SET balance=balance-? WHERE id=?", (req.amount, req.account_id))
+    cur = db.execute(
+        "INSERT INTO transactions (from_account_id, amount, type, description) VALUES (?,?,?,?)",
+        (req.account_id, req.amount, "withdrawal", req.description)
+    )
+    db.commit()
+    return {"id": cur.lastrowid, "account_id": req.account_id, "amount": req.amount,
+            "type": "withdrawal", "description": req.description,
+            "created_at": datetime.utcnow().isoformat()}
+
+
+@app.get("/api/accounts/summary")
+def accounts_summary(auth=Depends(require_auth)):
+    """BUG: N+1 — fetches transaction count for each account in a loop."""
+    db = get_db()
+    accounts = db.execute("SELECT id, owner, balance FROM accounts").fetchall()
+    result = []
+    for acc in accounts:
+        # N+1: separate query per account instead of a single JOIN/GROUP BY
+        txn_count = db.execute(
+            "SELECT COUNT(*) FROM transactions WHERE from_account_id=? OR to_account_id=?",
+            (acc[0], acc[0])
+        ).fetchone()[0]
+        result.append({"id": acc[0], "owner": acc[1], "balance": acc[2], "transaction_count": txn_count})
+    return result

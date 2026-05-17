@@ -6,6 +6,24 @@
       "bearerAuth": { "type": "http", "scheme": "bearer" }
     },
     "schemas": {
+      "BookWithRating": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "author": { "type": "string" },
+          "genre": { "type": "string" },
+          "price": { "type": "number" },
+          "stock": { "type": "integer" },
+          "avg_rating": { "type": "number" }
+        }
+      },
+      "SuggestionList": {
+        "type": "object",
+        "properties": {
+          "books": { "type": "array", "items": { "$ref": "#/components/schemas/BookWithRating" } }
+        }
+      },
       "Book": {
         "type": "object",
         "required": ["id", "title", "author"],
@@ -83,6 +101,27 @@
           { "name": "offset", "in": "query", "schema": { "type": "integer" } }
         ],
         "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookList" } } } } }
+      }
+    },
+    "/api/books/suggestions": {
+      "get": {
+        "operationId": "getBookSuggestions",
+        "summary": "Get book suggestions — BUG: N+1 rating query per book",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuggestionList" } } } }
+        }
+      }
+    },
+    "/api/books/genre/{genre}": {
+      "get": {
+        "operationId": "getBooksByGenre",
+        "summary": "Get books by genre",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "genre", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookList" } } } }
+        }
       }
     },
     "/api/books/search": {

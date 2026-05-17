@@ -120,8 +120,9 @@ export function historyFlow() {
 }
 
 export function handleSummary(data) {
+  const slug = __ENV.REPORT_NAME || "hestia-eats-test";
   return {
-    "k6/prometheus/results/hestia-eats-test.json": JSON.stringify(data, null, 2),
+    [`k6/prometheus/results/${slug}.json`]: JSON.stringify(data, null, 2),
     stdout: JSON.stringify({ status: "complete", metrics: Object.keys(data.metrics).length }),
   };
 }

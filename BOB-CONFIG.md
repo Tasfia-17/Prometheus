@@ -98,14 +98,15 @@ Only use k6 built-ins: `k6/http`, `k6`, `k6/metrics`, `k6/execution`, `k6/encodi
 
 ```javascript
 export function handleSummary(data) {
+  const slug = __ENV.REPORT_NAME || "<slug>";
   return {
-    'k6/prometheus/results/<slug>.json': JSON.stringify(data, null, 2),
+    [`k6/prometheus/results/${slug}.json`]: JSON.stringify(data, null, 2),
     stdout: JSON.stringify({ status: 'complete', metrics: Object.keys(data.metrics).length }),
   };
 }
 ```
 
-Replace `<slug>` with a descriptive name (e.g., `midas-bank-test`).
+The shell passes `REPORT_NAME` as an env var matching the script filename (without `.js`). Always use `__ENV.REPORT_NAME` — never hardcode the slug.
 
 ### Step 3: Write the Script
 

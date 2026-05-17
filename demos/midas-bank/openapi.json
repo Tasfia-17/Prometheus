@@ -254,6 +254,62 @@
                 }
             }
         },
+        "/api/transactions/withdraw": {
+            "post": {
+                "summary": "Withdraw",
+                "operationId": "withdraw_api_transactions_withdraw_post",
+                "parameters": [
+                    {
+                        "name": "authorization",
+                        "in": "header",
+                        "required": true,
+                        "schema": { "type": "string", "title": "Authorization" }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": { "$ref": "#/components/schemas/WithdrawRequest" }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": { "application/json": { "schema": {} } }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+                    }
+                }
+            }
+        },
+        "/api/accounts/summary": {
+            "get": {
+                "summary": "Accounts Summary — N+1 bug",
+                "operationId": "accounts_summary_api_accounts_summary_get",
+                "parameters": [
+                    {
+                        "name": "authorization",
+                        "in": "header",
+                        "required": true,
+                        "schema": { "type": "string", "title": "Authorization" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": { "application/json": { "schema": {} } }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+                    }
+                }
+            }
+        },
         "/api/accounts/{account_id}/balance": {
             "get": {
                 "summary": "Get Balance",
@@ -303,6 +359,16 @@
     },
     "components": {
         "schemas": {
+            "WithdrawRequest": {
+                "properties": {
+                    "account_id": { "type": "integer", "title": "Account Id" },
+                    "amount": { "type": "number", "title": "Amount" },
+                    "description": { "type": "string", "title": "Description", "default": "" }
+                },
+                "type": "object",
+                "required": ["account_id", "amount"],
+                "title": "WithdrawRequest"
+            },
             "DepositRequest": {
                 "properties": {
                     "account_id": {

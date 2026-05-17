@@ -127,3 +127,36 @@ def test_context_to_text_contains_schemas():
     assert "POST" in text
     assert "/api/transactions/transfer" in text
     assert "Schemas:" in text
+
+
+
+def test_midas_new_endpoint_retrieval():
+    spec = load_spec("midas-bank")
+    g = OpenAPIGraph.from_spec(spec)
+    r = SubgraphRetriever(g)
+    ctx = r.for_endpoints(["POST /api/transactions/withdraw"])
+    assert len(ctx.endpoints) == 1
+    assert "WithdrawRequest" in ctx.schemas or len(ctx.schemas) > 0
+
+
+def test_calliope_suggestions_retrieval():
+    spec = load_spec("calliope-books")
+    g = OpenAPIGraph.from_spec(spec)
+    r = SubgraphRetriever(g)
+    ctx = r.for_endpoints(["GET /api/books/suggestions"])
+    assert len(ctx.endpoints) == 1
+
+
+def test_hestia_search_retrieval():
+    spec = load_spec("hestia-eats")
+    g = OpenAPIGraph.from_spec(spec)
+    r = SubgraphRetriever(g)
+    ctx = r.for_endpoints(["GET /api/restaurants/search"])
+    assert len(ctx.endpoints) == 1
+
+
+def test_all_new_endpoints_parse():
+    for demo in ["midas-bank", "calliope-books", "hestia-eats"]:
+        spec = load_spec(demo)
+        g = OpenAPIGraph.from_spec(spec)
+        assert g.stats()["endpoints"] > 5

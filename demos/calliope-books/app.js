@@ -105,6 +105,30 @@ app.post("/api/books/:id/reviews", requireAuth, (req, res) => {
   res.status(201).json({ id, book_id: +req.params.id, rating: +rating, comment });
 });
 
+// BUG: N+1 — fetches reviews for each book in a separate query
+app.get("/api/books/suggestions", requireAuth, (req, res) => {
+  const rows = db.exec("SELECT id, title, author, genre, price, stock FROM books LIMIT 5");
+  const books = rows[0]
+    ? rows[0].values.map(([id, title, author, genre, price, stock]) => {
+        // N+1: separate query per book
+        const ratingRows = db.exec(`SELECT AVG(rating) FROM reviews WHERE book_id=${id}`);
+        const avg_rating = ratingRows[0]?.values[0][0] || null;
+        return { id, title, author, genre, price, stock, avg_rating };
+      })
+    : [];
+  res.json({ books });
+});
+
+app.get("/api/books/genre/:genre", requireAuth, (req, res) => {
+  const rows = db.exec(
+    `SELECT id, title, author, genre, price, stock FROM books WHERE genre='${req.params.genre}' LIMIT 20`
+  );
+  const books = rows[0]
+    ? rows[0].values.map(([id, title, author, genre, price, stock]) => ({ id, title, author, genre, price, stock }))
+    : [];
+  res.json({ books, total: books.length });
+});
+
 initDb().then(() => {
   app.listen(3000, () => console.log("Calliope Books running on :3000"));
 });
