@@ -6,13 +6,43 @@ Built with [IBM Bob](https://www.ibm.com/bob) for the [IBM Bob Hackathon 2026](h
 
 > *Prometheus stole fire from the gods and gave it to mortals. This Prometheus steals performance regressions from production and gives the verdict to developers — before the merge.*
 
-## The Problem
+---
 
-Performance testing doesn't scale with development velocity. [Grafana k6](https://k6.io/) is best-in-class for load testing ([30k+ GitHub stars](https://github.com/grafana/k6), cloud native, scriptable), but writing and maintaining test scripts compounds the gap. Teams ship endpoints faster than they can test them.
+## Summary
 
-The result: latency regressions ship to production. An N+1 query that adds 200ms per request under load goes unnoticed until customers complain. Amazon found that every [100ms of latency costs 1% in sales](https://www.gigaspaces.com/blog/amazon-found-every-100ms-of-latency-cost-them-1-in-sales/). Unplanned downtime averages [$14,056 per minute](https://www.erwoodgroup.com/blog/the-true-costs-of-downtime-in-2025-a-deep-dive-by-business-size-and-industry/).
+Prometheus is the full loop: **diff → test → execution → verdict**. It generates a k6 load test, deploys the application, runs concurrent virtual users against it, and reports what actually happened under load. Real latency numbers. Real pass/fail thresholds. Real bugs caught.
+
+**GitHub Actions integration:** Automatically triggers on pull requests, posts results as PR comments. See [`.github/workflows/prometheus.yml`](.github/workflows/prometheus.yml).
+
+**Key features:**
+- Autonomous bug detection: catches thread-safety issues, route ordering bugs, N+1 queries
+- OpenAPI GraphRAG: ~95% token reduction, zero hallucinated endpoints, A/B verified
+- Polyglot: Python/FastAPI, JavaScript/Express, TypeScript/Hono — same agent, zero code changes
+- 53 unit tests, deterministic report generation, open-model executors only
+
+---
+
+## Why Performance Testing Matters
+
+Some bugs only appear under load. A SQLite endpoint that passes every unit test can fail 60% of requests when concurrent users hit it, because thread-safety constraints only surface under real concurrency. Unit tests verify logic. Load tests verify behavior under production conditions. They catch different classes of bugs.
+
+**The cost of skipping load testing is well-documented:**
+- Amazon found that every [100ms of latency costs 1% in sales](https://www.gigaspaces.com/blog/amazon-found-every-100ms-of-latency-cost-them-1-in-sales/)
+- Unplanned downtime averages [$14,056 per minute](https://www.erwoodgroup.com/blog/the-true-costs-of-downtime-in-2025-a-deep-dive-by-business-size-and-industry/)
+
+**Companies that do load test see the difference:**
+- **fuboTV** uses Grafana k6 to catch performance regressions before production during high-traffic sporting events
+- **Olo** processes millions of restaurant orders per day and integrated k6 into their CI/CD pipeline so every release is verified under load before deployment
+
+The pattern is the same: teams that test under load find bugs before users do. Teams that don't, don't.
+
+**But performance testing doesn't scale with development velocity.** [Grafana k6](https://k6.io/) is best-in-class for load testing ([30k+ GitHub stars](https://github.com/grafana/k6), cloud native, scriptable), but writing and maintaining test scripts compounds the gap. Teams ship endpoints faster than they can test them.
 
 No existing tool closes the full loop: read a diff → generate a targeted load test → run it → post results. [Schemathesis](https://schemathesis.io/) does schema fuzzing. [Dredd](https://dredd.org/) does contract validation. k6 Cloud handles execution. None of them read a diff and produce a complete runnable test.
+
+**This is where IBM Bob fits.** Generating a correct k6 script from a code diff requires understanding endpoint semantics, choosing appropriate request bodies, writing validation logic for response schemas, and deciding what a reasonable SLO looks like for each endpoint type. That's a language understanding and code generation problem.
+
+---
 
 ## What Prometheus Does
 
@@ -82,6 +112,24 @@ Three demo apps, each with an injected performance fault that passes all serial 
 
 Both coarse failures (Midas Bank, Calliope Books) are invisible in serial testing and obvious under concurrent load. Prometheus diagnosed the root cause autonomously using Bob's full repository context.
 
+### Why These Bugs Matter
+
+**Midas Bank (Thread-Safety):** FastAPI runs requests in a thread pool. A single shared `sqlite3.Connection` isn't thread-safe. Under 60 concurrent VUs, the endpoint fails ~60% of requests with `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Serial tests never see this because there's no contention.
+
+**Calliope Books (Route Ordering):** Express matches routes in registration order. When `GET /api/books/:id` is declared before `GET /api/books/search`, Express treats "search" as an `:id` parameter → 404 for every search request. Unit tests call handlers directly, bypassing Express's route matching, so the bug is invisible until load testing hits the actual HTTP layer.
+
+**Hestia Eats (Unbounded Fetch):** `orders.slice()` copies all 500+ orders into memory on every request. Serial tests are fast enough that this doesn't matter. Under concurrent load with a large dataset, memory pressure accumulates and latency spikes.
+
+---
+
+## Inspiration
+
+Prometheus takes [Grafana k6](https://k6.io/) to its logical extreme: an AI agent writes the test from the code diff. k6 is battle-tested (30k+ GitHub stars, used by fuboTV, Olo, and thousands of teams), cloud native, and scriptable. Prometheus's job is to generate the right script and interpret the results, not reinvent the load testing engine.
+
+The name comes from Greek mythology. Prometheus stole fire from the gods and gave it to mortals. This Prometheus steals performance regressions from production and gives the verdict to developers — before the merge.
+
+---
+
 ## Demo Applications
 
 Three sample applications built for this hackathon, each with intentional performance anti-patterns:
@@ -92,7 +140,65 @@ Three sample applications built for this hackathon, each with intentional perfor
 | Calliope Books | JavaScript / Express / sql.js | 3000 | 8 | `GET /api/books/:id` declared before `/api/books/search` — shadows the search route; N+1 in suggestions |
 | Hestia Eats | JavaScript / Hono / in-memory | 8080 | 9 | `orders.slice()` copies all 500+ orders into memory on every request; N+1 in restaurant search |
 
-Each app includes a `BOB-CONFIG.md` with project-specific SLOs and auth config, and an `openapi.json` spec. Same agent, three stacks, zero code changes — only the per-project config differs.
+Each app uses production frameworks and real database layers (SQLite, sql.js, in-memory stores), with authentication, pagination, and 8–9 endpoints per app. Zero external dependencies. Each includes a `BOB-CONFIG.md` with project-specific SLOs and auth config, and an `openapi.json` spec.
+
+**The polyglot setup is deliberate:** it demonstrates that Prometheus generalizes across entirely different stacks, not just endpoints within a single app. Same agent, three stacks, zero code changes — only the per-project config differs.
+
+---
+
+## Challenges I Ran Into
+
+**1. Bob's context limits:** Long prompts cause reasoning loops. Structuring the prompt as a strict numbered checklist with inline k6 generation rules, and keeping dynamic context minimal via GraphRAG, was the key fix.
+
+**2. Process lifecycle:** Bob's `run_command` blocks until exit. Starting the app in one call and k6 in another leaves the server hung. A single shell script with a trap handler solved it: app startup, health check, risk analysis, GraphRAG, k6, report generation, cleanup — all in one process.
+
+**3. Deterministic reporting:** Bob produced broken Mermaid charts ~20% of the time. Report generation is now a deterministic Python script: k6 JSON → Markdown with color-themed bar and pie charts. Bob reasons. Python charts. k6 executes.
+
+**4. Polyglot routing:** Bob initially tested whichever demo app it found first. Diff-path routing fixed this: the root `BOB-CONFIG.md` maps file paths in the diff to the correct project config.
+
+---
+
+## Accomplishments I'm Proud Of
+
+✅ **Autonomous bug detection:** SQLite thread-safety under load and Express route ordering. Root causes diagnosed, fixes recommended, no human intervention.
+
+✅ **OpenAPI GraphRAG:** A novel approach to structured API context for LLMs. ~95% token reduction, zero hallucinated endpoints, A/B verified with empirical proof script. 114 lines, zero dependencies, 53 tests.
+
+✅ **Polyglot:** Python, JavaScript, TypeScript. Three stacks, same agent, zero code changes.
+
+✅ **GitHub Actions integration:** Automatically triggers on PRs, posts results as comments. Real CI/CD workflow, not just a CLI tool.
+
+✅ **Auditable by design:** Generated k6 scripts are committed to the repo. Every test is reproducible.
+
+---
+
+## What I Learned
+
+**Restructured context beats trimmed context.** I expected that reducing token count would be enough. It wasn't. Bob hallucinated endpoints from the full spec even when the prompt said "only test changed endpoints." The fix wasn't fewer tokens; it was changing the representation so the ambiguity was gone before Bob saw it.
+
+**Don't let the LLM generate structured syntax.** Mermaid, YAML, k6 thresholds. 80% reliability means 20% broken charts. I wasted time prompt-engineering around this before accepting that deterministic generation from structured data is the only reliable path.
+
+**Lean on battle-tested tools.** Bob's job is to generate the right script and interpret the results, not reinvent the load testing engine. k6 handles the hard parts.
+
+**Split LLM and deterministic work explicitly.** Bob reads diffs and generates k6 scripts. Python charts. k6 executes. Every time I let Bob cross into deterministic territory (Mermaid syntax, threshold arithmetic), reliability dropped.
+
+**Open-model executors matter.** Closed-model executors (`ramping-vus`) reduce throughput when the server slows down, hiding the regressions you're testing for. Prometheus exclusively generates open-model executors (`constant-arrival-rate`) that maintain consistent load regardless of server response time.
+
+---
+
+## What's Next for Prometheus
+
+🔮 **Automated baseline comparison:** The latency data already contains regression signal. `generate-report.py` flags >10% p95 drift against stored baselines. Next step: auto-run on merge to main to build those baselines.
+
+🔮 **Multi-protocol support:** GraphQL's introspection schema is natively graph-structured, making it a natural fit for the same BFS retrieval approach. gRPC reflection similarly.
+
+🔮 **SLO alerting:** Auto-create GitHub issues when performance degrades across runs.
+
+🔮 **Community adoption:** Publish the `BOB-CONFIG.md` convention so any project can onboard with one file.
+
+🔮 **Cross-model validation:** The deterministic GraphRAG retrieval is model-agnostic. Test with local models (Llama, Qwen) to prove portability.
+
+---
 
 ## Architecture
 
